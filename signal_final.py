@@ -11,7 +11,8 @@ from tensorflow.keras import datasets, layers, models
 from keras.models import Sequential
 from keras.layers import Dense, Flatten
 from keras.layers.convolutional import Conv1D
-from keras.layers.pooling import AveragePooling1D
+from keras.layers import Dropout
+from keras.layers.pooling import AveragePooling1D,MaxPooling1D
 from keras import regularizers
 
 def load_data(subject):
@@ -77,7 +78,6 @@ traindata = np.concatenate((traindata,subject7_train))
 label = np.concatenate((label,subject7_label))
 
 
-
 subject8_train, subject8_test, subject8_label = load_data('Subject_8')
 subject8_train = np.swapaxes(subject8_train,0,2)
 subject8_test = np.swapaxes(subject8_test,0,2)
@@ -87,16 +87,48 @@ input_shape = (1200,60)
 l1 = 0
 model = models.Sequential()
 model.add(Conv1D(60, 3, activation='relu',input_shape=input_shape))
-model.add(Dense(16, activation="relu"))
+model.add(MaxPooling1D(3))
+
+model.add(Conv1D(60, 1, activation='relu'))
+model.add(Dropout(0.5))
 model.add(AveragePooling1D(3))
+
+model.add(Conv1D(120, 2, activation='relu'))
+model.add(AveragePooling1D(3))
+
+model.add(Conv1D(20, 3, activation='relu'))
+model.add(AveragePooling1D(2))
+
+# model.add(Conv1D(60, 3, activation='relu'))
+# model.add(Dropout(0.5))
+# model.add(AveragePooling1D(3))
+#
+# model.add(Conv1D(60, 3, activation='relu'))
+# model.add(Dropout(0.5))
+# model.add(AveragePooling1D(3))
+
 model.add(layers.Flatten())
+model.add(layers.Dense(80, activation='relu'))
 model.add(layers.Dense(60, activation='relu'))
-model.add(layers.Dense(1, activation='softmax'))
+model.add(layers.Dense(1))
+model.add(layers.Activation('sigmoid'))
 
 model.summary()
 
+BATCH_SIZE = 24
+# STEPS_PER_EPOCH = labels.size / BATCH_SIZE
+SAVE_PERIOD = 4
+checkpoint_path = 'D:/Josie/23spring/signal_process/'
 model.compile(loss="binary_crossentropy", optimizer="rmsprop", metrics=["acc"])
-history = model.fit(traindata, label, batch_size=16,epochs=100)
+
+
+# cp_callback = tf.keras.callbacks.ModelCheckpoint(
+#     filepath=checkpoint_path,
+#     verbose=1,
+#     save_weights_only=True,
+#     #save_freq= int(SAVE_PERIOD * STEPS_PER_EPOCH),
+#     save_freq=4)
+history = model.fit(traindata, label, batch_size=64,epochs=80, validation_data=(subject8_train,  subject8_label))
 
 plt.plot(history.history['acc'], label='accuracy')
 plt.xlabel('Epoch')
@@ -108,6 +140,7 @@ plt.show()
 acc = model.evaluate(traindata, label)
 print("Loss:", acc[0], " Accuracy:", acc[1])
 
+test_loss, test_acc = model.evaluate(subject8_train,  subject8_label, verbose=2)
 
 
 
