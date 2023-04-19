@@ -14,30 +14,13 @@ from keras.layers.convolutional import Conv1D
 from keras.layers import Dropout
 from keras.layers.pooling import AveragePooling1D,MaxPooling1D
 from keras import regularizers
+from utils import load_data
 
-def load_data(subject):
-    '''
-    This function returns training and testing EEG data, and training labels.
-    Parameter: Subject number
-    Return:
-        - X_train: training set EEG data
-        - X_test: testing set EEG data
-        - y_train: training set labels
-    '''
-    seperator = ''  # specify the seperating term when joining strings
-    # load train, test, label .mat files
-    X_train = scipy.io.loadmat(seperator.join(['D:/Josie/23spring/signal_process/bandpass_filter_only/', subject, '_train.mat']));
-    X_test = scipy.io.loadmat(seperator.join(['D:/Josie/23spring/signal_process/bandpass_filter_only/', subject, '_test.mat']));
-    y_train = scipy.io.loadmat(seperator.join(['D:/Josie/23spring/signal_process/bandpass_filter_only/', subject, '_label.mat']));
-    # The loaded files are in the data structure numpy.void, findind the array in void that contains EEG data
-    X_train = X_train['EEG'][0][0][15]
-    X_test = X_test['EEG'][0][0][15]
-    y_train = y_train['train_label']
 
-    return X_train, X_test, y_train
+################## import data#######################################
 
-subject1_train, subject1_test, subject1_label = load_data('Subject_1')
-subject1_train = np.swapaxes(subject1_train,0,2)
+subject1_train, subject1_test, subject1_label = load_data('Subject_1')  # import data
+subject1_train = np.swapaxes(subject1_train,0,2)   # swap to make the shape (trail, time_stamp, feature)
 subject1_test = np.swapaxes(subject1_test,0,2)
 
 
@@ -45,7 +28,7 @@ subject2_train, subject2_test, subject2_label = load_data('Subject_2')
 subject2_train = np.swapaxes(subject2_train,0,2)
 subject2_test = np.swapaxes(subject2_test,0,2)
 
-traindata = np.concatenate((subject1_train,subject2_train))
+traindata = np.concatenate((subject1_train,subject2_train))  # combine to train data
 label = np.concatenate((subject1_label,subject2_label))
 
 subject3_train, subject3_test, subject3_label = load_data('Subject_3')
@@ -77,20 +60,25 @@ subject7_test = np.swapaxes(subject7_test,0,2)
 traindata = np.concatenate((traindata,subject7_train))
 label = np.concatenate((label,subject7_label))
 
-
+ # create test & validation data
 subject8_train, subject8_test, subject8_label = load_data('Subject_8')
 subject8_train = np.swapaxes(subject8_train,0,2)
 subject8_test = np.swapaxes(subject8_test,0,2)
 print(subject8_train.shape, subject8_test.shape, subject8_label.shape)
 
-input_shape = (1200,60)
+
+
+######################building model####################
+
+input_shape = (1200,60) # declare input shape
 l1 = 0
 model = models.Sequential()
-model.add(Conv1D(60, 3, activation='relu',input_shape=input_shape))
-model.add(MaxPooling1D(3))
+
+model.add(Conv1D(60, 3, activation='relu',input_shape=input_shape))   #conv1D_1
+model.add(MaxPooling1D(3))  # maxpooling
 
 model.add(Conv1D(60, 1, activation='relu'))
-model.add(Dropout(0.5))
+model.add(Dropout(0.5))     # dropout 0.5
 model.add(AveragePooling1D(3))
 
 model.add(Conv1D(120, 2, activation='relu'))
@@ -107,19 +95,19 @@ model.add(AveragePooling1D(2))
 # model.add(Dropout(0.5))
 # model.add(AveragePooling1D(3))
 
-model.add(layers.Flatten())
+model.add(layers.Flatten())   # flatten
 model.add(layers.Dense(80, activation='relu'))
 model.add(layers.Dense(60, activation='relu'))
 model.add(layers.Dense(1))
-model.add(layers.Activation('sigmoid'))
+model.add(layers.Activation('sigmoid'))   # sigmoid dense
 
-model.summary()
+model.summary()  # print model summary
 
 BATCH_SIZE = 24
 # STEPS_PER_EPOCH = labels.size / BATCH_SIZE
 SAVE_PERIOD = 4
-checkpoint_path = 'D:/Josie/23spring/signal_process/'
-model.compile(loss="binary_crossentropy", optimizer="rmsprop", metrics=["acc"])
+checkpoint_path = 'D:/Josie/23spring/signal_process/'  # declare checkpoint
+model.compile(loss="binary_crossentropy", optimizer="rmsprop", metrics=["acc"])  # compile model
 
 
 # cp_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -128,8 +116,12 @@ model.compile(loss="binary_crossentropy", optimizer="rmsprop", metrics=["acc"])
 #     save_weights_only=True,
 #     #save_freq= int(SAVE_PERIOD * STEPS_PER_EPOCH),
 #     save_freq=4)
+
 history = model.fit(traindata, label, batch_size=64,epochs=80, validation_data=(subject8_train,  subject8_label))
 
+
+
+###### plot accuracy #####################
 plt.plot(history.history['acc'], label='accuracy')
 plt.xlabel('Epoch')
 plt.ylabel('Accuracy')

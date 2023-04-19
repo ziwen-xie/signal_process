@@ -1,14 +1,20 @@
+import scipy.io
+import os
+import numpy as np
+import pandas as pd
+import re
+import matplotlib.pyplot as plt
+import mne
+import tensorflow as tf
 
-import gc
-import nndata
+from tensorflow.keras import datasets, layers, models
 from keras.models import Sequential
 from keras.layers import Dense, Flatten
-from keras.layers.wrappers import TimeDistributed
-from keras.layers.convolutional import Conv2D
-from keras.layers.pooling import AveragePooling2D
-from keras.layers.recurrent import LSTM
+from keras.layers.convolutional import Conv1D
+from keras.layers import Dropout
+from keras.layers.pooling import AveragePooling1D,MaxPooling1D
 from keras import regularizers
-from keras.callbacks import ModelCheckpoint
+
 
 def create_raw_model(nchan, nclasses, trial_length=960, l1=0):
     """
@@ -40,9 +46,25 @@ def create_raw_model2(nchan, nclasses, trial_length=960, l1=0, full_output=False
     model.compile(loss="categorical_crossentropy", optimizer="rmsprop", metrics=["acc"])
     return model
 
-def fit_model(model, X, y, train_idx, test_idx, input_length=50, batch_size=32, epochs=30, steps_per_epoch=1000, callbacks=None):    
-    gc.collect()
-    return model.fit_generator(
-        nndata.crossval_gen(X,y, train_idx, input_length, batch_size),
-        validation_data=nndata.crossval_test(X, y, test_idx, input_length),
-        steps_per_epoch=steps_per_epoch, epochs=epochs, callbacks=callbacks                          
+
+
+def load_data(subject):
+    '''
+    This function returns training and testing EEG data, and training labels.
+    Parameter: Subject number
+    Return:
+        - X_train: training set EEG data
+        - X_test: testing set EEG data
+        - y_train: training set labels
+    '''
+    seperator = ''  # specify the seperating term when joining strings
+    # load train, test, label .mat files
+    X_train = scipy.io.loadmat(seperator.join(['D:/Josie/23spring/signal_process/bandpass_filter_only/', subject, '_train.mat']));
+    X_test = scipy.io.loadmat(seperator.join(['D:/Josie/23spring/signal_process/bandpass_filter_only/', subject, '_test.mat']));
+    y_train = scipy.io.loadmat(seperator.join(['D:/Josie/23spring/signal_process/bandpass_filter_only/', subject, '_label.mat']));
+    # The loaded files are in the data structure numpy.void, findind the array in void that contains EEG data
+    X_train = X_train['EEG'][0][0][15]
+    X_test = X_test['EEG'][0][0][15]
+    y_train = y_train['train_label']
+
+    return X_train, X_test, y_train
