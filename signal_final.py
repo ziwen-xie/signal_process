@@ -175,19 +175,23 @@ model.summary()  # print model summary
 BATCH_SIZE = 24
 # STEPS_PER_EPOCH = labels.size / BATCH_SIZE
 SAVE_PERIOD = 4
-checkpoint_path = 'D:/Josie/23spring/signal_process/training_1/cp.ckpt'  # declare checkpoint
+checkpoint_path = 'D:/Josie/23spring/signal_process/training_1/cp-{epoch:04d}.ckpt'  # declare checkpoint
+checkpoint_dir = os.path.dirname(checkpoint_path)
 model.compile(loss="binary_crossentropy", optimizer="rmsprop", metrics=["acc"])  # compile model
 
 
 cp_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_path,
     verbose=1,
+    save_best_only= True,
+    mode = 'auto',
     save_weights_only=True,
-    #save_freq= int(SAVE_PERIOD * STEPS_PER_EPOCH),
-    save_freq=4)
+    #save_freq= int(SAVE_PERIOD * STEPS_PER_EPOCH)
+    )
 # TODO: learnning rate
 # TODO: early stop, cp_callback
 # callbacks=[cp_callback],
+model.save_weights(checkpoint_path.format(epoch=0))
 
 input_data = X_train
 y_train = y_train
@@ -209,6 +213,10 @@ print("Loss:", acc[0], " Accuracy:", acc[1])
 
 test_loss, test_acc = model.evaluate(X_test,  y_test, verbose=2)
 
-predict = model.predict(subject1_test, verbose=0)
+latest = tf.train.latest_checkpoint(checkpoint_dir)
+
+model.load_weights(latest)
+test_loss, test_acc = model.evaluate(X_test,  y_test, verbose=2)
+predict = model.predict(X_test, verbose=0)
 
 
