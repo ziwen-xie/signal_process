@@ -183,6 +183,7 @@ model.compile(loss="binary_crossentropy", optimizer="rmsprop", metrics=["acc"]) 
 cp_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_path,
     verbose=1,
+    monitor='val_acc',
     save_best_only= True,
     mode = 'auto',
     save_weights_only=True,
