@@ -1,0 +1,9 @@
+numpy
+scipy
+pandas
+matplotlib
+mne
+tensorflow-macos
+scikit-learn
+
+

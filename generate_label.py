@@ -15,19 +15,13 @@ from keras.layers import Dropout
 from keras.layers.pooling import AveragePooling1D,MaxPooling1D
 from keras import regularizers
 from utils import load_data
+from scipy.io import savemat
 import mne
 from mne.datasets import sample
 from mne.decoding import UnsupervisedSpatialFilter
 
 from sklearn.decomposition import PCA, FastICA
 from sklearn.model_selection import train_test_split
-
-
-
-##TODO: PCA
-
-
-################## import data#######################################
 
 subject1_train, subject1_test, subject1_label = load_data('Subject_1')  # import data
 subject1_train = np.swapaxes(subject1_train,0,2)   # swap to make the shape (trail, time_stamp, feature)
@@ -71,6 +65,13 @@ subject5_test = np.swapaxes(subject5_test,0,2)
 traindata = np.concatenate((traindata,subject5_train))
 label = np.concatenate((label,subject5_label))
 
+subject6_train, subject6_test, subject6_label = load_data('Subject_6')
+subject6_train = np.swapaxes(subject6_train,0,2)
+subject6_test = np.swapaxes(subject6_test,0,2)
+#
+# traindata = np.concatenate((traindata,subject6_train))
+# label = np.concatenate((label,subject6_label))
+
 
 subject7_train, subject7_test, subject7_label = load_data('Subject_7')
 subject7_train = np.swapaxes(subject7_train,0,2)
@@ -93,19 +94,15 @@ pca = UnsupervisedSpatialFilter(PCA(20), average=False)
 pca_data = pca.fit_transform(traindata)
 pca_data = np.swapaxes(pca_data,1,2)
 
-pca_data2 = pca_data[:,0:900,:]
+pca_data2 = pca_data[:,0:1200,:]
 X_train, X_test, y_train, y_test = train_test_split(pca_data2,
                                                     label,
-                                                    test_size=0.15,
+                                                    test_size=0.1,
                                                     random_state=47)
 
 
-
-
-######################building model####################
-
 def create_model():
-    input_shape = (900,20) # declare input shape
+    input_shape = (1200,20) # declare input shape
     model = models.Sequential()
 
     model.add(Conv1D(60, 3, activation='relu',input_shape=input_shape))   #conv1D_1
@@ -138,96 +135,69 @@ def create_model():
 
     return model
 
-def create_model2():
-    input_shape = (500,20) # declare input shape
-    l1 = 0
-    model = models.Sequential()
-
-    model.add(Conv1D(64, 3, activation='relu',input_shape=input_shape))   #conv1D_1
-    model.add(MaxPooling1D(3))  # maxpooling
-    model.add(Dropout(0.5))  # dropout 0.5
-
-    model.add(Conv1D(128, 2, activation='relu'))
-    model.add(MaxPooling1D(7))
-
-
-    model.add(Conv1D(64, 2, activation='relu'))
-    model.add(MaxPooling1D(3))
-
-
-
-
-    # model.add(Conv1D(60, 3, activation='relu'))
-    # model.add(Dropout(0.5))
-    # model.add(AveragePooling1D(3))
-    #
-    # model.add(Conv1D(60, 3, activation='relu'))
-    # model.add(Dropout(0.5))
-    # model.add(AveragePooling1D(3))
-
-    model.add(layers.Flatten())   # flatten
-    model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(1))
-    model.add(layers.Activation('sigmoid'))   # sigmoid dense
-
-
-    return model
-
 model = create_model()
 model.summary()  # print model summary
-BATCH_SIZE = 24
-# STEPS_PER_EPOCH = labels.size / BATCH_SIZE
-SAVE_PERIOD = 4
-checkpoint_path = '/Users/josie/PycharmProjects/signal_process/training_1/cp-{epoch:04d}.ckpt'  # declare checkpoint
-checkpoint_dir = os.path.dirname(checkpoint_path)
+
+
 model.compile(loss="binary_crossentropy", optimizer="rmsprop", metrics=["acc"])  # compile model
 
 
-cp_callback = tf.keras.callbacks.ModelCheckpoint(
-    filepath=checkpoint_path,
-    verbose=1,
-    monitor='val_acc',
-    save_best_only= True,
-    mode = 'auto',
-    save_weights_only=True,
-    #save_freq= int(SAVE_PERIOD * STEPS_PER_EPOCH)
-    )
-# TODO: learnning rate
-# TODO: early stop, cp_callback
-# callbacks=[cp_callback],
-model.save_weights(checkpoint_path.format(epoch=0))
-
-input_data = X_train
-y_train = y_train
-history = model.fit(input_data, y_train,callbacks=[cp_callback],batch_size=8,epochs=50, validation_data=(X_test, y_test))
-
-
-
-###### plot accuracy #####################
-plt.plot(history.history['acc'], label='accuracy')
-plt.plot(history.history['val_acc'], label='val_accuracy')
-
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.ylim([0.3, 1.5])
-plt.legend(loc='lower right')
-plt.show()
-
-plt.plot(history.history['loss'], label='loss')
-plt.plot(history.history['val_loss'], label='val_loss')
-plt.legend(loc='lower right')
-plt.show()
-
-acc = model.evaluate(X_test,  y_test)
-print("Loss:", acc[0], " Accuracy:", acc[1])
-
-test_loss, test_acc = model.evaluate(X_test,  y_test, verbose=2)
+checkpoint_path = '/Users/josie/PycharmProjects/signal_process/t_0.84_norm/cp-{epoch:04d}.ckpt'  # declare checkpoint
+checkpoint_dir = os.path.dirname(checkpoint_path)
 
 latest = tf.train.latest_checkpoint(checkpoint_dir)
 
 model.load_weights(latest)
 test_loss, test_acc = model.evaluate(X_test,  y_test, verbose=2)
-predict = model.predict(X_test, verbose=0)
+
+
+
+temp_label = np.zeros((8, 19  ))
+
+def predict_result(num1,num2,temp_label):
+    predict = model.predict(num1, verbose=0)
+    for i in range(19):
+        if i < len(num1):
+            if predict[i] < 0.5:
+                temp_label[num2][i] = 0
+            else:
+                temp_label[num2][i] = 1
+        else:
+            temp_label[num2][i] = np.nan
+    return 0
+
+def perform_PCA(testdata):
+    sub1 = np.swapaxes(testdata, 2, 1)
+    pca = UnsupervisedSpatialFilter(PCA(20), average=False)
+    pca_data = pca.fit_transform(sub1)
+    pca_data1 = np.swapaxes(pca_data, 1, 2)
+    return pca_data1
+
+sub1 = perform_PCA(subject1_test)
+predict_result(sub1,0,temp_label)
+
+sub2 = perform_PCA(subject2_test)
+predict_result(sub2,1,temp_label)
+
+sub3 = perform_PCA(subject3_test)
+predict_result(sub3,2,temp_label)
+
+sub4 = perform_PCA(subject4_test)
+predict_result(sub4,3,temp_label)
+
+sub5 = perform_PCA(subject5_test)
+predict_result(sub5,4,temp_label)
+
+sub6 = perform_PCA(subject6_test)
+predict_result(sub6,5,temp_label)
+
+sub7 = perform_PCA(subject7_test)
+predict_result(sub7,6,temp_label)
+
+sub8 = perform_PCA(subject8_test)
+predict_result(sub8,7,temp_label)
+
+mdic = {"subj": temp_label}
+savemat("matlab_matrix.mat", mdic)
 
 
